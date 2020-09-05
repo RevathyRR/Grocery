@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".SignupActivity">
 
-    <android.support.v7.widget.LinearLayoutCompat
+    <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_alignParentTop="true"
@@ -149,7 +149,7 @@
                 android:text="Login"
                 android:textColor="@color/colorPrimaryDark" />
         </RelativeLayout>
-    </android.support.v7.widget.LinearLayoutCompat>
+    </androidx.appcompat.widget.LinearLayoutCompat>
 
 
 </RelativeLayout>
