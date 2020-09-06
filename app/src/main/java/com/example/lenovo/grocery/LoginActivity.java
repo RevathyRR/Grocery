@@ -9,14 +9,24 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.StringRequest;
+
 import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.HashMap;
 import java.util.Map;
 import app.AppController;
@@ -26,22 +36,22 @@ import app.AppController;
 public class LoginActivity extends AppCompatActivity {
     public Button but;
     public TextView sign;
-    public EditText email, password;
-    final String s1 = email.getText().toString().trim();
-    final String s2 = password.getText().toString().trim();
-    AlertDialogManager alert = new AlertDialogManager();
-    SessionManagement session;
-
+    public EditText editemail, editpassword;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-        session = new SessionManagement(getApplicationContext());
 
-        email = findViewById(R.id.editTextEmail);
-        password = findViewById(R.id.editTextPassword);
-        Toast.makeText(getApplicationContext(), "User Login Status: " + session.isLoggedIn(), Toast.LENGTH_LONG).show();
+        if (SessionManagement.getInstance(this).isLoggedIn()) {
+            finish();
+            startActivity(new Intent(this, MainActivity.class));
+            return;
+        }
+
+
+        editemail = findViewById(R.id.editTextEmail);
+        editpassword = findViewById(R.id.editTextPassword);
         sign = findViewById(R.id.signup);
         but = findViewById(R.id.buttonContinue);
 
@@ -49,7 +59,35 @@ public class LoginActivity extends AppCompatActivity {
         but.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                userLogin();
+
+               /* if(s1.length() > 0 && s2.length() > 0){
+                    // For testing puspose username, password is checked with sample data
+                    // username = test
+                    // password = test
+                    if(s1.equals("revathyramath@gmail.com") && s2.equals("123456")){
+
+                        // Creating user login session
+                        // For testing i am stroing name, email as follow
+                        // Use user real data
+                        session.createLoginSession("revathyramath@gmail.com", "123456");
+
+                        // Staring MainActivity
+                        Intent i = new Intent(getApplicationContext(), MainActivity.class);
+                        startActivity(i);
+                        finish();
+
+                    }else{
+                        // username / password doesn't match
+                        alert.showAlertDialog(LoginActivity.this, "Login failed..", "Username/Password is incorrect", false);
+                    }
+                }else{
+                    // user didn't entered username or password
+                    // Show alert asking him to enter the details
+                    alert.showAlertDialog(LoginActivity.this, "Login failed..", "Please enter username and password", false);
+                }  */
+
+               userLogin();
+
 
             }
         });
@@ -67,58 +105,80 @@ public class LoginActivity extends AppCompatActivity {
 
 
     private void userLogin() {
+        //first getting the values
+        final String email = editemail.getText().toString();
+        final String password = editpassword.getText().toString();
 
-
-        if (TextUtils.isEmpty(s1)) {
-            email.setError("Please enter your email");
-            email.requestFocus();
+        //validating inputs
+        if (TextUtils.isEmpty(email)) {
+            editemail.setError("Please enter your email");
+            editemail.requestFocus();
             return;
         }
 
-
-        if (TextUtils.isEmpty(s2)) {
-            password.setError("Enter a password");
-            password.requestFocus();
+        if (TextUtils.isEmpty(password)) {
+            editpassword.setError("Please enter your password");
+            editpassword.requestFocus();
             return;
         }
 
-
-        String tag_tag_arry = "json_array_req";
-        String url = "https://api.androidhive.info/volley/person_array.json";
-        final ProgressDialog pDialog = new ProgressDialog(this);
-        pDialog.setMessage("Loading...");
-        pDialog.show();
-        JsonArrayRequest req =new JsonArrayRequest(url,
-                new Response.Listener<JSONArray>() {
+        //if everything is fine
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URLs.URL_LOGIN,
+                new Response.Listener<String>() {
                     @Override
-                    public void onResponse(JSONArray response) {
-                        //Log.d(TAG, response.toString());
-                        Toast.makeText(getApplicationContext(), "Done", Toast.LENGTH_SHORT).show();
-                        pDialog.hide();
-                        Intent sign = new Intent(LoginActivity.this, MainActivity.class);
-                        startActivity(sign);
-                        finish();
+                    public void onResponse(String response) {
+
+                        try {
+                            //converting response to json object
+                            JSONObject obj = new JSONObject(response);
+
+                            //if no error in response
+                            if (!obj.getBoolean("error")) {
+                                Toast.makeText(getApplicationContext(), obj.getString("message"), Toast.LENGTH_SHORT).show();
+
+                                //getting the user from the response
+                                JSONObject userJson = obj.getJSONObject("user");
+
+                                //creating a new user object
+                                User user = new User(
+                                        userJson.getString("email"),
+                                        userJson.getString("phone"),
+                                        userJson.getString("password")
+                                );
+
+                                //storing the user in shared preferences
+                                SessionManagement.getInstance(getApplicationContext()).userLogin(user);
+
+                                //starting the profile activity
+                                finish();
+                                startActivity(new Intent(getApplicationContext(), MainActivity.class));
+                            } else {
+                                Toast.makeText(getApplicationContext(), obj.getString("message"), Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                     }
-                }, new Response.ErrorListener() {
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(getApplicationContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }) {
             @Override
-            public void onErrorResponse(VolleyError error) {
-                //VolleyLog.e(TAG, "Error"+error.getMessage());
-                Toast.makeText(getApplicationContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
-
-
-                pDialog.hide();
-            }
-        }) {
-            @Override
-            protected Map<String, String> getParams() {
-               Map<String, String> params = new HashMap<String, String>();
-               params.put("email", "asd@gmail.com");
-               params.put("password", "password123");
-               return params;
-
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String, String> params = new HashMap<>();
+                params.put("email", email);
+                params.put("password", password);
+                return params;
             }
         };
-        AppController.getInstance().addToRequestQueue(req, tag_tag_arry);
+
+        AppController.getInstance().addToRequestQueue(stringRequest);
     }
+
+
+
 
 }
